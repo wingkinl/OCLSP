@@ -170,6 +170,11 @@ def send_cpptools_didChangeCppProperties(inject_queue):
     minor = int(parts[1][:2])          # first two decimals only
     orgVerHex = f"0x{major:X}{minor:02X}"[-3:]   # keep last 3 hex chars
     params["configurations"][0]["defines"].append(f"_OC_VER={orgVerHex}")
+    params["configurations"][0]["forcedInclude"] = [
+        # somehow cpptools doesn't recognize Folder class, it seems like folder.h is ignored
+        # Forcing it to include fixes it
+        os.path.join(ocPath, "System", "folder.h")
+    ]
     params["workspaceFolderUri"] = Path(ocPath).absolute().as_uri()
     proxy_id = next(_proxy_id_gen)
     _trace_log(f"[IDGEN] injected cpptools/didChangeCppProperties proxy_id={proxy_id}")

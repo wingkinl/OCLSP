@@ -25,6 +25,9 @@
                 "foreach=for",
                 "_LSP_SUPPORT"
             ],
+            "forcedInclude": [
+                "C:/Origin/OriginC/System/folder.h"
+            ],
             "intelliSenseModeIsExplicit": false,
             "cStandardIsExplicit": false,
             "cppStandardIsExplicit": false,
