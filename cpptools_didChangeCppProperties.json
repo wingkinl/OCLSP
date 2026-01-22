@@ -18,6 +18,11 @@
                 "UNICODE",
                 "_UNICODE",
                 "NULL=0",
+                "byte=unsigned char",
+                "ushort=unsigned short",
+                "uint64=unsigned __int64",
+                "OC_REGISTERED=",
+                "foreach=for",
                 "_LSP_SUPPORT"
             ],
             "intelliSenseModeIsExplicit": false,

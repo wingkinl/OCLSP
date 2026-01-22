@@ -327,7 +327,7 @@
         "Unable to index files from non-existent folder: {0}"
     ],
     "settings": {
-        "filesAssociations": {"*.xfc" : "cpp", "*.fit" : "cpp", "*.ocz" : "cpp"},
+        "filesAssociations": {"*.xfc" : "cpp", "*.fit" : "cpp", "*.ocz" : "cpp", "*.c" : "cpp"},
         "workspaceFallbackEncoding": "utf8",
         "workspaceFallbackEncodingChanged": false,
         "maxConcurrentThreads": null,
