@@ -231,13 +231,24 @@ def OCLSP_UpdateLSPWithCpptools(cpptools_path):
     OCLSP_Print(cpptools_path)
     OCLSP_Print("You may need to restart Origin for the changes to take effect.")
     config_json_path = os.path.join(OCLSP_GetOriginAppPath(), "OCLSP.json")
-    
+
     settings = {
         "cpptools": cpptools_path
     }
 
+    try:
+        with open(config_json_path, "r", encoding="utf-8") as f:
+            settings = json.load(f)
+    except (json.JSONDecodeError, IOError) as e:
+        OCLSP_Print("Error loading config file:", e)
+        return None
+
+    if "cpptools" not in settings:
+        settings["cpptools"] = cpptools_path
+
     # Ensure the list exists and avoid duplicates
-    settings.setdefault("installed_orgin_lsp", [])
+    if "installed_orgin_lsp" not in settings:
+        settings["installed_orgin_lsp"] = []
     if lsp_json_path not in settings["installed_orgin_lsp"]:
         settings["installed_orgin_lsp"].append(lsp_json_path)
 
