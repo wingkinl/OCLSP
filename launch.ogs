@@ -1,0 +1,2 @@
+[main]
+run -pyf "%@A%@X\launch.py";

@@ -1,0 +1,42 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "c:/Origin/OriginC/**"
+            ],
+            "defines": [
+                "_ORIGINC_",
+                "_POST_ORIGIN7_",
+                "__REPLACE_VSFLEX_WITH_64_MP_WXGRID__",
+                "__NOT32",
+                "_OWIN64",
+                "_O64",
+                "_ORIGIN_VER_9_0_",
+                "__USE_OCV_IMAGE__",
+                "__OC_UNICODE__",
+                "UNICODE",
+                "_UNICODE",
+                "NULL=0",
+                "_LSP_SUPPORT"
+            ],
+            "intelliSenseModeIsExplicit": false,
+            "cStandardIsExplicit": false,
+            "cppStandardIsExplicit": false,
+            "mergeConfigurations": false,
+            "recursiveIncludes": {
+                "reduce": "default",
+                "priority": "afterSystemIncludes",
+                "order": "depthFirst"
+            },
+            "compilerPathIsExplicit": false,
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true
+            },
+            "compilerArgs": []
+        }
+    ],
+    "currentConfiguration": 0,
+    "workspaceFolderUri": "file:///c%3A/Origin/OriginC",
+    "isReady": true
+}

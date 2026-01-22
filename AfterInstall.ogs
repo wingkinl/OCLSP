@@ -1,0 +1,3 @@
+[main]
+// pip -chk numpy pandas scikit-learn;
+run -pyf "%@A%@X\AfterInstall.py";
