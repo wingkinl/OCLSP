@@ -230,18 +230,20 @@ def OCLSP_UpdateLSPWithCpptools(cpptools_path):
     OCLSP_Print("LSP.json updated to use cpptools extension for Origin C at:")
     OCLSP_Print(cpptools_path)
     OCLSP_Print("You may need to restart Origin for the changes to take effect.")
+    OCLSP_Print("Note that you need to set up OC LSP one time for one Origin version.")
     config_json_path = os.path.join(OCLSP_GetOriginAppPath(), "OCLSP.json")
 
     settings = {
         "cpptools": cpptools_path
     }
 
-    try:
-        with open(config_json_path, "r", encoding="utf-8") as f:
-            settings = json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
-        OCLSP_Print("Error loading config file:", e)
-        return None
+    if os.path.isfile(config_json_path):
+        try:
+            with open(config_json_path, "r", encoding="utf-8") as f:
+                settings = json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            OCLSP_Print("Error loading config file:", e)
+            return None
 
     if "cpptools" not in settings:
         settings["cpptools"] = cpptools_path
@@ -393,7 +395,7 @@ def OCLSP_TryInstall(from_installer):
 
 def InstallOCLSP(from_installer):
     if OCLSP_FindClient():
-        nn = op.messagebox('OC LSP already configured, do you want to update it?', True)
+        nn = op.messagebox('OC LSP already configured, OC LSP only needs to set up one time for one Origin version.\nDo you want to update it?', True)
         if nn:
             OCLSP_TryInstall(from_installer)
     else:

@@ -33,6 +33,7 @@ def OCLSP_RemoveOCLSPFromOriginLSPJson(lsp_file):
                         with open(lsp_file, "w", encoding="utf-8") as f:
                             try:
                                 json.dump(lsp_data, f, indent=4, default=str)
+                                cache_dir = os.path.join(os.path.dirname(lsp_file), "OCLSP", "cache")
                                 OCLSP_Print(f"OCLSP is removed from {lsp_file}.")
                                 return True
                             except json.JSONDecodeError as e:
@@ -51,10 +52,9 @@ def OCLSP_RemoveLSPConfigInInstalledList(lsp_config):
             installed_lsp.remove(lsp_config)
 
         if isinstance(installed_lsp, list):
-            for item in installed_lsp[:]:
-                if item == lsp_config:
-                    installed_lsp.remove(item)
-                    OCLSP_RemoveOCLSPFromOriginLSPJson(item)
+            for item in installed_lsp:
+                OCLSP_RemoveOCLSPFromOriginLSPJson(item)
+            installed_lsp.clear()
 
         with open(config_json_path, "w", encoding="utf-8") as f:
             try:
