@@ -162,14 +162,15 @@ def send_cpptools_didChangeCppProperties(inject_queue):
         params = {}  # fallback to empty dict if file missing or invalid
     ocPath = os.path.join(_ORGDIR_EXE, "OriginC")
     params["configurations"][0]["includePath"] = [f"{ocPath}/**"]
-    # Extract major and first two decimals, then convert to 3-digit hex
-    # Ensure we have a string representation of the version
-    ver_str = str(_ORG_VERSION)
+    # Extract major and first two decimals
+    # Ensure we have a string representation of the version with enough decimals
+    ver_str = f"{_ORG_VERSION:.6f}"
     parts = ver_str.split(".")
     major = int(parts[0])
-    minor = int(parts[1][:2])          # first two decimals only
-    orgVerHex = f"0x{major:X}{minor:02X}"[-3:]   # keep last 3 hex chars
-    params["configurations"][0]["defines"].append(f"_OC_VER={orgVerHex}")
+    minor_str = (parts[1] + "00")[:2]
+    # e.g. 10.35 -> 0x0A35 (Major converted to Hex, Minor kept as digits)
+    orgOCVerHex = f"0x{major:02X}{minor_str}"
+    params["configurations"][0]["defines"].append(f"_OC_VER={orgOCVerHex}")
     params["configurations"][0]["forcedInclude"] = [
         # somehow cpptools doesn't recognize Folder class, it seems like folder.h is ignored
         # Forcing it to include fixes it
