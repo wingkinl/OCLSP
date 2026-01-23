@@ -34,6 +34,10 @@ def OCLSP_RemoveOCLSPFromOriginLSPJson(lsp_file):
                             try:
                                 json.dump(lsp_data, f, indent=4, default=str)
                                 cache_dir = os.path.join(os.path.dirname(lsp_file), "OCLSP", "cache")
+                                if os.path.isdir(cache_dir):
+                                    shutil.rmtree(cache_dir)
+                                    OCLSP_Print(f"OCLSP cache directory {cache_dir} is removed.")
+
                                 OCLSP_Print(f"OCLSP is removed from {lsp_file}.")
                                 return True
                             except json.JSONDecodeError as e:
