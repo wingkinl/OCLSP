@@ -12,3 +12,5 @@ With the help of cpptools, Code Builder will support:
 - Auto Complete
 - Go to definition (Press F11 on a symbol)
 - Show document when hover on a symbol
+
+![AutoComplete](AutoComplete.png)
