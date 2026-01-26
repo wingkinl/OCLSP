@@ -4,11 +4,13 @@ from pathlib import Path
 import tkinter as tk
 import json
 
+APP_NAME = "OriginC Autocomplete"
+
 def OCLSP_Print(*args, **kwargs):
-    print("[OC LSP]", *args, **kwargs)
+    print(f"[OCLSP]", *args, **kwargs)
 
 def OCLSP_PrintAppBanner():
-    OCLSP_Print("OC LSP 2026.01")
+    OCLSP_Print(f"{APP_NAME} 2026.01")
     OCLSP_Print("Powered by cpptools, introduces IntelliSense for Origin C.")
     OCLSP_Print("This app is not affiliated with, endorsed by, or sponsored by")
     OCLSP_Print("OriginLab, Microsoft, or any other organization, in any way.")
@@ -99,7 +101,7 @@ def OCLSP_GetDownloadDirForCpptools():
     cpptools_path = os.path.join(uff, "OCLSP")
     return cpptools_path
 
-def OCLSP_GetLSPConfigJsonPath():
+def OCLSP_GetOriginLSPConfigJsonPath():
     org_ver = op.org_ver()
     if org_ver < 10.35:
         lsp_config = os.path.join(op.path(), "LSP.json")
@@ -141,6 +143,7 @@ def OCLSP_GetCpptoolsExtensionPath():
     downloaded_cpptools_path += "\\extension\\bin\\cpptools.exe"
     if os.path.isfile(downloaded_cpptools_path):
         found_candidates.append(downloaded_cpptools_path)
+        OCLSP_Print(f"Downloaded cpptools path is at {downloaded_cpptools_path}")
 
     config_json_path = os.path.join(OCLSP_GetOriginAppPath(), "OCLSP.json")
     OCLSP_Print(f"config path is at {config_json_path}")
@@ -150,14 +153,16 @@ def OCLSP_GetCpptoolsExtensionPath():
             if "cpptools" in config:
                 last_used_cpptools_path = config["cpptools"]
                 if last_used_cpptools_path not in found_candidates:
+                    OCLSP_Print(f"Last used cpptools path is at {last_used_cpptools_path}")
                     found_candidates.append(last_used_cpptools_path)
 
     try:
         for entry in extensions_dir.iterdir():
             if entry.is_dir() and entry.name.startswith(target_prefix):
-                cpptools_exe = entry / "bin" / "cpptools.exe"
-                if cpptools_exe.is_file() and cpptools_exe not in found_candidates:
+                cpptools_exe = os.path.join(entry, "bin", "cpptools.exe")
+                if os.path.isfile(cpptools_exe) and cpptools_exe not in found_candidates:
                     found_candidates.append(str(cpptools_exe))
+                    OCLSP_Print(f"Found cpptools extension at: {cpptools_exe}")
     except Exception as e:
         OCLSP_Print(f"Error reading extension directory: {e}")
         return []

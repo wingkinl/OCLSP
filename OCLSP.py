@@ -204,9 +204,9 @@ def send_cpptools_initialize(inject_queue):
     # Override/customize with runtime paths
     cpptools_init_params.update({
         "extensionPath": cpptoolsExtDir,
-        "databaseStoragePath": os.path.join(_DATASTORAGE_DIR, "OCLSP", "cache", "databaseStoragePath"),
-        "workspaceStoragePath": os.path.join(_DATASTORAGE_DIR, "OCLSP", "cache", "workspaceStoragePath", "OCLSP"),
-        "cacheStoragePath": os.path.join(_DATASTORAGE_DIR, "OCLSP", "cache"),
+        "databaseStoragePath": os.path.join(_DATASTORAGE_DIR, "OCLSP", "storage", "databaseStorage"),
+        "workspaceStoragePath": os.path.join(_DATASTORAGE_DIR, "OCLSP", "storage", "workspaceStorage"),
+        "cacheStoragePath": os.path.join(_DATASTORAGE_DIR, "OCLSP", "storage", "cacheStorage"),
         "edgeMessagesDirectory": os.path.join(cpptoolsBinDir, "messages", "en-us"),
     })
 
@@ -319,9 +319,29 @@ def _handle_lsp_completion(msg):
         _fix_completion_documentation(msg)
 
 
+def _handle_lsp_hover(msg):
+    """
+    Intercept and modify the hover response from cpptools before sending to Origin.
+    """
+    _trace_log(f"Intercepted cpptools/hover response: {msg}")
+    
+    result = msg.get("result")
+    if result and "contents" in result:
+        # contents: MarkedString | MarkedString[] | MarkupContent;
+        contents = result["contents"]
+        # Normalize contents to a list of {kind, value} objects
+        if isinstance(contents, list):
+            if len(contents) == 1 and "value" in contents[0] and "kind" not in contents[0]:
+                contents[0]["kind"] = "markdown"
+        elif isinstance(contents, dict):
+            if "value" in contents and "kind" not in contents:
+                contents["kind"] = "markdown"
+
+
 _lsp_method_handlers = {
     "initialize": _handle_lsp_initialize,
     "textDocument/completion": _handle_lsp_completion,
+    "cpptools/hover": _handle_lsp_hover,
 }
 
 

@@ -13,7 +13,7 @@ import urllib.request
 import urllib.error
 
 def OCLSP_FindClient():
-    lsp_config = OCLSP_GetLSPConfigJsonPath()
+    lsp_config = OCLSP_GetOriginLSPConfigJsonPath()
     if os.path.isfile(lsp_config):
         with open(lsp_config, "r", encoding="utf-8") as f:
             try:
@@ -171,7 +171,7 @@ def OCLSP_GetOrignPythonPath():
 
 def OCLSP_UpdateLSPWithCpptools(cpptools_path):
     uff = op.path()
-    lsp_json_path = OCLSP_GetLSPConfigJsonPath()
+    lsp_json_path = OCLSP_GetOriginLSPConfigJsonPath()
     lsp_data = {}
     if os.path.isfile(lsp_json_path):
         try:
@@ -230,7 +230,7 @@ def OCLSP_UpdateLSPWithCpptools(cpptools_path):
     OCLSP_Print("LSP.json updated to use cpptools extension for Origin C at:")
     OCLSP_Print(cpptools_path)
     OCLSP_Print("You may need to restart Origin for the changes to take effect.")
-    OCLSP_Print("Note that you need to set up OC LSP one time for one Origin version.")
+    OCLSP_Print(f"Note that you need to set up {APP_NAME} one time for one Origin version.")
     config_json_path = os.path.join(OCLSP_GetOriginAppPath(), "OCLSP.json")
 
     settings = {
@@ -251,8 +251,14 @@ def OCLSP_UpdateLSPWithCpptools(cpptools_path):
     # Ensure the list exists and avoid duplicates
     if "installed_orgin_lsp" not in settings:
         settings["installed_orgin_lsp"] = []
+
+    curInstall = {
+        "config": lsp_json_path,
+        "storage": os.path.join(OCLSP_GetCurUserOriginAppDataPath(), "OCLSP", "storage")
+    }
+    
     if lsp_json_path not in settings["installed_orgin_lsp"]:
-        settings["installed_orgin_lsp"].append(lsp_json_path)
+        settings["installed_orgin_lsp"].append(curInstall)
 
     try:
         with open(config_json_path, "w", encoding="utf-8") as f:
@@ -360,7 +366,7 @@ def OCLSP_TryInstall(from_installer):
     cpptools_paths = OCLSP_GetCpptoolsExtensionPath()
     if not cpptools_paths:
         OCLSP_Print("cpptools extension not found.")
-        choice = OCLSP_PopupChoice(title="OC LSP", message="cpptools extension not found, do you want to download it or browse the one on your computer?\n", buttons=["Download", "Browse"])
+        choice = OCLSP_PopupChoice(title=APP_NAME, message="cpptools extension not found, do you want to download it or browse the one on your computer?\n", buttons=["Download", "Browse"])
         if choice == "Download":
             cpptools_path = OCLSP_DownloadCpptoolsExtension()
             if cpptools_path:
@@ -395,7 +401,7 @@ def OCLSP_TryInstall(from_installer):
 
 def InstallOCLSP(from_installer):
     if OCLSP_FindClient():
-        nn = op.messagebox('OC LSP already configured, OC LSP only needs to set up one time for one Origin version.\nDo you want to update it?', True)
+        nn = op.messagebox(f'{APP_NAME} already configured, {APP_NAME} only needs to set up one time for one Origin version.\nDo you want to update it?', True)
         if nn:
             OCLSP_TryInstall(from_installer)
     else:
