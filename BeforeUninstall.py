@@ -82,7 +82,7 @@ if __name__ == '__main__':
     lsp_json_file = OCLSP_GetOriginLSPConfigJsonPath()
     installation_item = {
         "config": lsp_json_file,
-        "storage": os.path.join(os.path.dirname(lsp_json_file), "OCLSP", "storage")
+        "storage": OCLSP_GetStoragePath()
     }
     OCLSP_RemoveOCLSPFromOriginLSPJson(installation_item)
     OCLSP_RemoveLSPConfigInInstalledList(lsp_json_file)

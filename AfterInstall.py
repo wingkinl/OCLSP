@@ -254,7 +254,7 @@ def OCLSP_UpdateLSPWithCpptools(cpptools_path):
 
     curInstall = {
         "config": lsp_json_path,
-        "storage": os.path.join(OCLSP_GetCurUserOriginAppDataPath(), "OCLSP", "storage")
+        "storage": OCLSP_GetStoragePath()
     }
     
     if lsp_json_path not in settings["installed_orgin_lsp"]:

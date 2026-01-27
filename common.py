@@ -121,6 +121,9 @@ def OCLSP_GetCurUserOriginAppDataPath():
     # C:\Users\kenny\AppData\Local\OriginLab\103b\
     return op.get_lt_str('%@Y')
 
+def OCLSP_GetStoragePath():
+    return os.path.join(OCLSP_GetCurUserOriginAppDataPath(), "OCLSP", "storage")
+
 def OCLSP_GetCpptoolsExtensionPath():
     """
     Locates the ms-vscode.cpptools extension folder.
