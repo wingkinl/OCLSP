@@ -252,10 +252,23 @@ def _handle_origin_textDocument_hover(msg, inject_queue):
     msg["method"] = "cpptools/hover"
     return [json.dumps(msg).encode("utf-8")]
 
+def _handle_origin_textDocument_documentSymbol(msg, inject_queue):
+    # cpptools does not handle textDocument/documentSymbol, but handles cpptools/getDocumentSymbols
+    msg["method"] = "cpptools/getDocumentSymbols"
+    
+    # Align payload shape to VS Code's format: move uri at the top level
+    if "params" in msg and "textDocument" in msg["params"]:
+        uri = msg["params"]["textDocument"].get("uri")
+        if uri:
+            msg["params"] = {"uri": uri}
+    
+    return [json.dumps(msg).encode("utf-8")]
+
 _origin_method_handlers = {
     "initialize": _handle_origin_initialize,
     "initialized": _handle_origin_initialized,
     "textDocument/hover": _handle_origin_textDocument_hover,
+    "textDocument/documentSymbol": _handle_origin_textDocument_documentSymbol,
 }
 
 
@@ -310,6 +323,7 @@ def _handle_lsp_initialize(msg):
     # Modify the initialize response to enable hoverProvider
     if "result" in msg and "capabilities" in msg["result"]:
         msg["result"]["capabilities"]["hoverProvider"] = True
+        msg["result"]["capabilities"]["documentSymbolProvider"] = True
     _trace_log(f"modified initialize response: {msg}")
     out = [json.dumps(msg).encode("utf-8")]
     return out
@@ -337,11 +351,54 @@ def _handle_lsp_hover(msg):
             if "value" in contents and "kind" not in contents:
                 contents["kind"] = "markdown"
 
+def _flatten_symbols(symbols, parent_name=None):
+    flat_list = []
+    for sym in symbols:
+        # Create a shallow copy to avoid modifying the original dict in nested calls unexpectedly
+        # though we are popping children, so we are modifying it.
+        
+        # 1. Handle detail
+        if parent_name:
+            sym['detail'] = parent_name
+        else:
+            # Ensure detail is a string if it exists, or empty string
+            detail = sym.get('detail')
+            if detail is None or not isinstance(detail, str):
+                sym['detail'] = ""
+        
+        # 2. Extract children
+        children = sym.pop('children', [])
+        
+        flat_list.append(sym)
+        
+        if children:
+            flat_list.extend(_flatten_symbols(children, sym.get('name', '')))
+            
+    return flat_list
+
+def _handle_lsp_documentSymbol(msg):
+    """
+    Intercept and modify the documentSymbol response from cpptools.
+    cpptools returns { "symbols": [...] }, but LSP expects [...] or null.
+    """
+    _trace_log(f"Intercepted cpptools/getDocumentSymbols response: {msg}")
+    
+    result = msg.get("result")
+    if isinstance(result, dict) and "symbols" in result:
+        msg["result"] = result["symbols"]
+    
+    # For older Origin versions, flatten the symbols list
+    if _ORG_VERSION < 10.35:
+        symbols = msg.get("result")
+        if isinstance(symbols, list):
+            msg["result"] = _flatten_symbols(symbols)
+
 
 _lsp_method_handlers = {
     "initialize": _handle_lsp_initialize,
     "textDocument/completion": _handle_lsp_completion,
     "cpptools/hover": _handle_lsp_hover,
+    "cpptools/getDocumentSymbols": _handle_lsp_documentSymbol,
 }
 
 
