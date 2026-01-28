@@ -1,4 +1,4 @@
-# OCLSP
+# OCLSP (OriginC Autocomplete)
 Language support for OriginC in Code Builder for Origin
 
 Code Builder is the integrated development environment (IDE) built directly into OriginPro and Origin software by OriginLab.
@@ -12,5 +12,7 @@ With the help of cpptools, Code Builder will support:
 - Auto Complete
 - Go to definition (Press F11 on a symbol)
 - Show document when hover on a symbol
+- List symbols in active document (Alt+M)
+- Find all references to a selected symbol (Shift+Alt+F)
 
 ![AutoComplete](AutoComplete.png)
