@@ -264,11 +264,29 @@ def _handle_origin_textDocument_documentSymbol(msg, inject_queue):
     
     return [json.dumps(msg).encode("utf-8")]
 
+def _handle_origin_textDocument_references(msg, inject_queue):
+    # cpptools does not handle textDocument/references, but handles cpptools/findAllReferences
+    # Note: cpptools/findAllReferences params structure is very similar to RenameParams (includes newName)
+    msg["method"] = "cpptools/findAllReferences"
+    
+    if "params" in msg:
+        params = msg["params"]
+        # Standard params: { textDocument, position, context }
+        # cpptools params: { textDocument, position, newName }
+        if "newName" not in params:
+            params["newName"] = ""
+        # Remove context if present (cpptools doesn't seem to use it in this custom request)
+        if "context" in params:
+            del params["context"]
+            
+    return [json.dumps(msg).encode("utf-8")]
+
 _origin_method_handlers = {
     "initialize": _handle_origin_initialize,
     "initialized": _handle_origin_initialized,
     "textDocument/hover": _handle_origin_textDocument_hover,
     "textDocument/documentSymbol": _handle_origin_textDocument_documentSymbol,
+    "textDocument/references": _handle_origin_textDocument_references,
 }
 
 
@@ -324,6 +342,7 @@ def _handle_lsp_initialize(msg):
     if "result" in msg and "capabilities" in msg["result"]:
         msg["result"]["capabilities"]["hoverProvider"] = True
         msg["result"]["capabilities"]["documentSymbolProvider"] = True
+        msg["result"]["capabilities"]["referencesProvider"] = True
     _trace_log(f"modified initialize response: {msg}")
     out = [json.dumps(msg).encode("utf-8")]
     return out
@@ -394,11 +413,50 @@ def _handle_lsp_documentSymbol(msg):
             msg["result"] = _flatten_symbols(symbols)
 
 
+def _handle_lsp_references(msg):
+    """
+    Intercept and modify the references response from cpptools.
+    cpptools returns { "referenceInfos": [...] }, but LSP expects Location[].
+    """
+    _trace_log(f"Intercepted cpptools/findAllReferences response: {msg}")
+    
+    result = msg.get("result")
+    locations = []
+    
+    if isinstance(result, dict) and "referenceInfos" in result:
+        infos = result["referenceInfos"]
+        for info in infos:
+            # ReferenceInfo: { file: string, position: Position, text: string, type: ReferenceType }
+            # Location: { uri: string, range: Range }
+            
+            file_path = info.get("file")
+            position = info.get("position")
+            
+            if file_path and position:
+                uri = Path(file_path).as_uri()
+                
+                # cpptools returns just a start position. We need a range.
+                # We'll create a zero-length range or try to guess length from text if reliable.
+                # For now, safe bet is zero-length range at the start position.
+                
+                loc = {
+                    "uri": uri,
+                    "range": {
+                        "start": position,
+                        "end": position
+                    }
+                }
+                locations.append(loc)
+                
+    msg["result"] = locations
+
+
 _lsp_method_handlers = {
     "initialize": _handle_lsp_initialize,
     "textDocument/completion": _handle_lsp_completion,
     "cpptools/hover": _handle_lsp_hover,
     "cpptools/getDocumentSymbols": _handle_lsp_documentSymbol,
+    "cpptools/findAllReferences": _handle_lsp_references,
 }
 
 
