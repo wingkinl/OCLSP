@@ -205,6 +205,8 @@ def OCLSP_UpdateLSPWithCpptools(cpptools_path):
             "process": {
                 "exe": OCLSP_GetOrignPythonPath(),
                 "arg": [oclsp_py_path_quote, cpptools_path_quote],
+                # uncomment this so that errors can be captured
+                #"redirStdOut": True,
                 "env" : {
                     "PYTHONPATH": ";".join(OCLSP_GetOriginPythonLibPaths()),
                     "PYTHONHOME": OCLSP_GetOriginPythonDLLPath(),
