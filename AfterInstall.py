@@ -195,6 +195,8 @@ def OCLSP_UpdateLSPWithCpptools(cpptools_path):
     oclsp_py_path_quote = f'"{oclsp_py_path}"'
     cpptools_path_quote = f'"{cpptools_path}"'
 
+    config_json_path = os.path.join(OCLSP_GetOriginAppPath(), "OCLSP.json")
+
     new_entry = {
         "Lang": 1,
         "Name": "OCLSP_cpptools",
@@ -208,6 +210,7 @@ def OCLSP_UpdateLSPWithCpptools(cpptools_path):
                     "PYTHONHOME": OCLSP_GetOriginPythonDLLPath(),
                     "OCLSP_TRACE": False,
                     "OCLSP_LOG": False,
+                    "OCLSP_CONFIG_JSON_PATH": config_json_path,
                     "ORGDIR_EXE": op.path('e'),
                     "ORGDIR_UFF": uff,
                     "ORGDIR_USER_APPDATA": OCLSP_GetCurUserOriginAppDataPath(),
@@ -231,7 +234,6 @@ def OCLSP_UpdateLSPWithCpptools(cpptools_path):
     OCLSP_Print(cpptools_path)
     OCLSP_Print("You may need to restart Origin for the changes to take effect.")
     OCLSP_Print(f"Note that you need to set up {APP_NAME} one time for one Origin version.")
-    config_json_path = os.path.join(OCLSP_GetOriginAppPath(), "OCLSP.json")
 
     settings = {
         "cpptools": cpptools_path

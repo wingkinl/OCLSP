@@ -9,6 +9,7 @@ import time
 import traceback
 import ctypes
 from pathlib import Path
+from enum import IntEnum
 
 _enable_log = False
 _enable_trace = False
@@ -17,6 +18,7 @@ _ORGDIR_EXE = ""
 _ORGDIR_UFF = ""
 _ORGDIR_USER_APPDATA = ""
 _DATASTORAGE_DIR = ""
+_OCLSP_CONFIG_JSON_PATH = ""
 # _ORG_VERSION is a floating numer, e.g. 10.350049
 _ORG_VERSION = 10.350001
 _CPPTOOLS_PATH = ""
@@ -413,6 +415,15 @@ def _handle_lsp_documentSymbol(msg):
             msg["result"] = _flatten_symbols(symbols)
 
 
+class ReferenceType(IntEnum):
+    Confirmed = 0
+    ConfirmationInProgress = 1
+    Comment = 2
+    String = 3
+    Inactive = 4
+    CannotConfirm = 5
+    NotAReference = 6
+
 def _handle_lsp_references(msg):
     """
     Intercept and modify the references response from cpptools.
@@ -422,29 +433,62 @@ def _handle_lsp_references(msg):
     
     result = msg.get("result")
     locations = []
+
+    allowed_ref_type = [
+        ReferenceType.Confirmed,
+        ReferenceType.ConfirmationInProgress,
+        #ReferenceType.Comment,
+        #ReferenceType.String,
+        ReferenceType.Inactive,
+        ReferenceType.CannotConfirm,
+        #ReferenceType.NotAReference
+    ]
+    if _OCLSP_CONFIG_JSON_PATH and os.path.isfile(_OCLSP_CONFIG_JSON_PATH):
+        try:
+            with open(_OCLSP_CONFIG_JSON_PATH, "r", encoding="utf-8") as f:
+                config = json.load(f)
+                if "allowed_ref_type" in config:
+                    allowed_ref_type = config["allowed_ref_type"]
+        except Exception as e:
+            _trace_log(f"Error reading config.json: {e}")
     
     if isinstance(result, dict) and "referenceInfos" in result:
         infos = result["referenceInfos"]
         for info in infos:
-            # ReferenceInfo: { file: string, position: Position, text: string, type: ReferenceType }
-            # Location: { uri: string, range: Range }
+            # cpptools ReferenceInfo: { file: string, position: Position, text: string, type: ReferenceType }
+            # standard Location: { uri: string, range: Range }
             
             file_path = info.get("file")
             position = info.get("position")
             
             if file_path and position:
+                ref_type = info.get("type", 0)
+                if ref_type not in allowed_ref_type:
+                    continue
                 uri = Path(file_path).as_uri()
                 
                 # cpptools returns just a start position. We need a range.
                 # We'll create a zero-length range or try to guess length from text if reliable.
                 # For now, safe bet is zero-length range at the start position.
+
+                # enum ReferenceType {
+                #     Confirmed,
+                #     ConfirmationInProgress,
+                #     Comment,
+                #     String,
+                #     Inactive,
+                #     CannotConfirm,
+                #     NotAReference
+                # }
                 
                 loc = {
                     "uri": uri,
                     "range": {
                         "start": position,
                         "end": position
-                    }
+                    },
+                    "text": info.get("text", ""),
+                    "type": ref_type
                 }
                 locations.append(loc)
                 
@@ -674,6 +718,8 @@ def main(cpptools_path):
     _ORGDIR_USER_APPDATA = os.environ.get("ORGDIR_USER_APPDATA", "")
     global _DATASTORAGE_DIR
     _DATASTORAGE_DIR = _ORGDIR_USER_APPDATA if os.path.exists(_ORGDIR_USER_APPDATA) else _ORGDIR_UFF
+    global _OCLSP_CONFIG_JSON_PATH
+    _OCLSP_CONFIG_JSON_PATH = os.environ.get("OCLSP_CONFIG_JSON_PATH", "")
 
     global _trace_log, _trace, _log
     _trace = trace_impl if _enable_trace else trace_log_noop
