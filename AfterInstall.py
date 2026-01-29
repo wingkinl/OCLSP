@@ -401,7 +401,7 @@ def OCLSP_TryInstall(from_installer):
 
 def InstallOCLSP(from_installer):
     if OCLSP_FindClient():
-        nn = op.messagebox(f'{APP_NAME} already configured, {APP_NAME} only needs to set up one time for one Origin version.\nDo you want to update it?', True)
+        nn = op.messagebox(f'{APP_NAME} already configured, it only needs to set up one time for one Origin version.\nDo you want to update it?', True)
         if nn:
             OCLSP_TryInstall(from_installer)
     else:
