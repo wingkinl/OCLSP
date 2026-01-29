@@ -357,11 +357,15 @@ def OCLSP_TryInstall(from_installer):
     OCLSP_Print("This tool depends on cpptools, a C/C++ Extension for Visual Studio Code by Microsoft.")
     OCLSP_Print("Use at your own risks. Please read the license carefully:")
     OCLSP_Print("https://marketplace.visualstudio.com/items/ms-vscode.cpptools/license")
+    OCLSP_Print("https://github.com/microsoft/vscode-cpptools/blob/main/RuntimeLicenses/cpptools-LICENSE.txt")
+    OCLSP_Print("https://github.com/microsoft/vscode-cpptools/blob/main/RuntimeLicenses/cpptools-srv-LICENSE.txt")
     if from_installer:
         warning_msg = (
             "This tool depends on cpptools, a C/C++ Extension for Visual Studio Code by Microsoft.\n\n"
             "Use at your own risks. Please read the license carefully:\n\n"
             "https://marketplace.visualstudio.com/items/ms-vscode.cpptools/license\n\n"
+            "https://github.com/microsoft/vscode-cpptools/blob/main/RuntimeLicenses/cpptools-LICENSE.txt\n\n"
+            "https://github.com/microsoft/vscode-cpptools/blob/main/RuntimeLicenses/cpptools-srv-LICENSE.txt\n\n"
             "Do you want to continue?"
         )
         if OCLSP_PopupChoice(title="OC LSP - Warning", message=warning_msg, buttons=["Yes", "No"]) != "Yes":
