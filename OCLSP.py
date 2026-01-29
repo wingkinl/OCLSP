@@ -19,6 +19,7 @@ _ORGDIR_UFF = ""
 _ORGDIR_USER_APPDATA = ""
 _DATASTORAGE_DIR = ""
 _OCLSP_CONFIG_JSON_PATH = ""
+_OCLSP_CONFIG = {}
 # _ORG_VERSION is a floating numer, e.g. 10.350049
 _ORG_VERSION = 10.350001
 _CPPTOOLS_PATH = ""
@@ -144,10 +145,25 @@ def _handle_origin_initialize(msg, inject_queue):
     opts = params.setdefault("initializationOptions", {})
     ocPath = os.path.join(_ORGDIR_EXE, "OriginC")
     params["rootPath"] = ocPath
-    params["workspaceFolders"] = [{
+    workspace_folders = [{
         "uri": Path(ocPath).absolute().as_uri(),
         "name": "OriginC"
     }]
+    
+    if "workspaceFolders" in _OCLSP_CONFIG:
+        extra_folders = _OCLSP_CONFIG["workspaceFolders"]
+        if isinstance(extra_folders, list):
+            for folder in extra_folders:
+                if "uri" in folder and "name" in folder:
+                    folder_copy = folder.copy()
+                    uri = folder_copy.get("uri")
+                    if uri and not uri.startswith("file://"):
+                        uri = Path(uri).absolute().as_uri()
+                        folder_copy["uri"] = uri
+                    workspace_folders.append(folder_copy)
+                    _trace_log(f"added extra workspace folder: {folder_copy}")
+
+    params["workspaceFolders"] = workspace_folders
     if _enable_cpptools_trace:
         opts["loggingLevel"] = 1
         params["trace"] = "verbose"
@@ -155,7 +171,7 @@ def _handle_origin_initialize(msg, inject_queue):
     out = [json.dumps(msg).encode("utf-8")]
     return out
 
-def send_cpptools_didChangeCppProperties(inject_queue):
+def send_cpptools_didChangeCppProperties(inject_queue, folder_path):
     json_path = Path(__file__).with_name("cpptools_didChangeCppProperties.json")
     try:
         with json_path.open("r", encoding="utf-8") as f:
@@ -163,7 +179,10 @@ def send_cpptools_didChangeCppProperties(inject_queue):
     except (FileNotFoundError, json.JSONDecodeError):
         params = {}  # fallback to empty dict if file missing or invalid
     ocPath = os.path.join(_ORGDIR_EXE, "OriginC")
+
+    # Always use ocPath/** as include path
     params["configurations"][0]["includePath"] = [f"{ocPath}/**"]
+
     # Extract major and first two decimals
     # Ensure we have a string representation of the version with enough decimals
     ver_str = f"{_ORG_VERSION:.6f}"
@@ -178,7 +197,7 @@ def send_cpptools_didChangeCppProperties(inject_queue):
         # Forcing it to include fixes it
         os.path.join(ocPath, "System", "folder.h")
     ]
-    params["workspaceFolderUri"] = Path(ocPath).absolute().as_uri()
+    params["workspaceFolderUri"] = Path(folder_path).absolute().as_uri()
     proxy_id = next(_proxy_id_gen)
     _trace_log(f"[IDGEN] injected cpptools/didChangeCppProperties proxy_id={proxy_id}")
     injected = {
@@ -229,6 +248,19 @@ def send_cpptools_initialize(inject_queue):
         "uri": Path(ocPath).absolute().as_uri(),
     })
 
+    if "workspaceFolders" in _OCLSP_CONFIG:
+        extra_folders = _OCLSP_CONFIG["workspaceFolders"]
+        if isinstance(extra_folders, list):
+            for folder in extra_folders:
+                if "uri" in folder:
+                    uri = folder.get("uri")
+                    if uri and not uri.startswith("file://"):
+                        uri = Path(uri).absolute().as_uri()
+                    
+                    new_settings = firstWorkspaceFolderSettings.copy()
+                    new_settings["uri"] = uri
+                    cpptools_init_params["settings"]["workspaceFolderSettings"].append(new_settings)
+
     proxy_id = next(_proxy_id_gen)
     _trace_log(f"[IDGEN] injected cpptools/initialize proxy_id={proxy_id}")
     injected = {
@@ -244,7 +276,24 @@ def _handle_origin_initialized(msg, inject_queue):
     
     send_cpptools_initialize(inject_queue)
 
-    send_cpptools_didChangeCppProperties(inject_queue)
+    ocPath = os.path.join(_ORGDIR_EXE, "OriginC")
+    send_cpptools_didChangeCppProperties(inject_queue, ocPath)
+
+    if "workspaceFolders" in _OCLSP_CONFIG:
+        extra_folders = _OCLSP_CONFIG["workspaceFolders"]
+        if isinstance(extra_folders, list):
+            for folder in extra_folders:
+                if "uri" in folder:
+                    uri = folder.get("uri")
+                    folder_path = ""
+                    if uri.lower().startswith("file:///"):
+                         folder_path = uri[8:]
+                         folder_path = os.path.normpath(folder_path)
+                    elif os.path.isabs(uri):
+                         folder_path = uri
+                    
+                    if folder_path:
+                         send_cpptools_didChangeCppProperties(inject_queue, folder_path)
 
     return None
 
@@ -443,14 +492,8 @@ def _handle_lsp_references(msg):
         ReferenceType.CannotConfirm,
         #ReferenceType.NotAReference
     ]
-    if _OCLSP_CONFIG_JSON_PATH and os.path.isfile(_OCLSP_CONFIG_JSON_PATH):
-        try:
-            with open(_OCLSP_CONFIG_JSON_PATH, "r", encoding="utf-8") as f:
-                config = json.load(f)
-                if "allowed_ref_type" in config:
-                    allowed_ref_type = config["allowed_ref_type"]
-        except Exception as e:
-            _trace_log(f"Error reading config.json: {e}")
+    if "allowed_ref_type" in _OCLSP_CONFIG:
+        allowed_ref_type = _OCLSP_CONFIG["allowed_ref_type"]
     
     if isinstance(result, dict) and "referenceInfos" in result:
         infos = result["referenceInfos"]
@@ -726,6 +769,14 @@ def main(cpptools_path):
     _log = log_impl if _enable_log else trace_log_noop
     _trace_log = trace_log_impl if (_enable_trace or _enable_log) else trace_log_noop
     _trace_log("Starting up..")
+    
+    global _OCLSP_CONFIG
+    if _OCLSP_CONFIG_JSON_PATH and os.path.isfile(_OCLSP_CONFIG_JSON_PATH):
+        try:
+            with open(_OCLSP_CONFIG_JSON_PATH, "r", encoding="utf-8") as f:
+                _OCLSP_CONFIG = json.load(f)
+        except Exception as e:
+            _trace_log(f"Error reading config.json: {e}")
 
     global _CPPTOOLS_PATH
     _CPPTOOLS_PATH = cpptools_path
