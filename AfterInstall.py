@@ -261,7 +261,14 @@ def OCLSP_UpdateLSPWithCpptools(cpptools_path):
         "storage": OCLSP_GetStoragePath()
     }
     
-    if lsp_json_path not in settings["installed_orgin_lsp"]:
+    # Check if we already have an entry with this config path
+    found = False
+    for install in settings["installed_orgin_lsp"]:
+        if isinstance(install, dict) and install.get("config") == lsp_json_path:
+            found = True
+            break
+            
+    if not found:
         settings["installed_orgin_lsp"].append(curInstall)
 
     try:
