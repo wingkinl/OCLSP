@@ -22,7 +22,9 @@ This tool depends on cpptools, a C/C++ Extension for Visual Studio Code by Micro
 **Please read the license carefully:**
 
 https://marketplace.visualstudio.com/items/ms-vscode.cpptools/license
+
 https://github.com/microsoft/vscode-cpptools/blob/main/RuntimeLicenses/cpptools-LICENSE.txt
+
 https://github.com/microsoft/vscode-cpptools/blob/main/RuntimeLicenses/cpptools-srv-LICENSE.txt
 
 
