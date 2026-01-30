@@ -27,6 +27,8 @@ https://github.com/microsoft/vscode-cpptools/blob/main/RuntimeLicenses/cpptools-
 
 
 
+![](OCLSP.gif)
+
 ## Auto Complete
 
 ![AutoComplete](AutoComplete.png)
