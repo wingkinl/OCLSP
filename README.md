@@ -27,25 +27,25 @@ https://github.com/microsoft/vscode-cpptools/blob/main/RuntimeLicenses/cpptools-
 
 
 
-Auto Complete
+## Auto Complete
 
 ![AutoComplete](AutoComplete.png)
 
 
 
-Signature Help
+## Signature Help
 
 ![image-SignatureHelp](SignatureHelp.png)
 
 
 
-List symbols in active document (Alt+M)
+## List symbols in active document (Alt+M)
 
 ![image-ListSymbols](ListSymbols.png)
 
 
 
-Hover symbol info
+## Hover symbol info
 
 ![image-HoverSymbol](HoverSymbol.png)
 
