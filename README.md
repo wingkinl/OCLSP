@@ -137,8 +137,13 @@ Here's an example of OCLSP.json:
             "uri": "C:\\Users\\Kenny\\AppData\\Local\\OriginLab\\Apps",
             "name": "app"
         }
-    ]
+    ],
+	"additionalIncludePath": [
+		"C:\\Users\\Kenny\\AppData\\Local\\OriginLab\\Apps\\Statistical Process Control"
+	]
 }
 ```
 
-If you need to work on multiple folder in Code Builder, you may add additional workspace folder, as shown above.
+If you need to work on multiple folder in Code Builder, you may add additional workspace folder, as shown in **workspaceFolders** entry.
+
+If you need to add additional include path, add them to **additionalIncludePath** list.
