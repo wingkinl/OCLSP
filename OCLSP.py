@@ -180,8 +180,17 @@ def send_cpptools_didChangeCppProperties(inject_queue, folder_path):
         params = {}  # fallback to empty dict if file missing or invalid
     ocPath = os.path.join(_ORGDIR_EXE, "OriginC")
 
+    is_oc_folder = folder_path == ocPath
+
     # Always use ocPath/** as include path
     params["configurations"][0]["includePath"] = [f"{ocPath}/**"]
+
+    if not is_oc_folder and "additionalIncludePath" in _OCLSP_CONFIG:
+        additional_paths = _OCLSP_CONFIG["additionalIncludePath"]
+        if isinstance(additional_paths, list):
+            for path in additional_paths:
+                if path:
+                    params["configurations"][0]["includePath"].append(f"{path}/**")
 
     # Extract major and first two decimals
     # Ensure we have a string representation of the version with enough decimals
