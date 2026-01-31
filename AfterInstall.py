@@ -237,9 +237,7 @@ def OCLSP_UpdateLSPWithCpptools(cpptools_path):
     OCLSP_Print("You may need to restart Origin for the changes to take effect.")
     OCLSP_Print(f"Note that you need to set up {APP_NAME} one time for one Origin version.")
 
-    settings = {
-        "cpptools": cpptools_path
-    }
+    settings = {}
 
     if os.path.isfile(config_json_path):
         try:
@@ -249,8 +247,19 @@ def OCLSP_UpdateLSPWithCpptools(cpptools_path):
             OCLSP_Print("Error loading config file:", e)
             return None
 
-    if "cpptools" not in settings:
-        settings["cpptools"] = cpptools_path
+    # Ensure default keys exist to help users understand the config structure
+    defaults = {
+        "cpptools": "",
+        "installed_orgin_lsp": [],
+        "workspaceFolders": [],
+        "additionalIncludePath": []
+    }
+    
+    for key, val in defaults.items():
+        if key not in settings:
+            settings[key] = val
+
+    settings["cpptools"] = cpptools_path
 
     # Ensure the list exists and avoid duplicates
     if "installed_orgin_lsp" not in settings:

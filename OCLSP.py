@@ -18,8 +18,10 @@ _ORGDIR_EXE = ""
 _ORGDIR_UFF = ""
 _ORGDIR_USER_APPDATA = ""
 _DATASTORAGE_DIR = ""
-_OCLSP_CONFIG_JSON_PATH = ""
-_OCLSP_CONFIG = {}
+_GLOBAL_OCLSP_CONFIG_JSON_PATH = ""
+_GLOBAL_OCLSP_CONFIG = None
+_CUR_VER_OCLSP_CONFIG_JSON_PATH = ""
+_CUR_VER_OCLSP_CONFIG = None
 # _ORG_VERSION is a floating numer, e.g. 10.350049
 _ORG_VERSION = 10.350001
 _CPPTOOLS_PATH = ""
@@ -30,6 +32,136 @@ _shutdown_lock = threading.Lock()
 _cpptools_process = None
 _server_stdin_lock = threading.Lock()
 _client_stdout_lock = threading.Lock()
+
+def get_oclsp_config():
+    global _GLOBAL_OCLSP_CONFIG
+    if _GLOBAL_OCLSP_CONFIG is None:
+        # Load Global Config
+        global_config = {}
+        if _GLOBAL_OCLSP_CONFIG_JSON_PATH and os.path.isfile(_GLOBAL_OCLSP_CONFIG_JSON_PATH):
+            try:
+                with open(_GLOBAL_OCLSP_CONFIG_JSON_PATH, "r", encoding="utf-8") as f:
+                    global_config = json.load(f)
+            except Exception as e:
+                _trace_log(f"Error reading global config {_GLOBAL_OCLSP_CONFIG_JSON_PATH}: {e}")
+                global_config = {}
+        
+        # Load User Config (Versioned)
+        user_config = {}
+        if _CUR_VER_OCLSP_CONFIG_JSON_PATH and os.path.isfile(_CUR_VER_OCLSP_CONFIG_JSON_PATH):
+            try:
+                with open(_CUR_VER_OCLSP_CONFIG_JSON_PATH, "r", encoding="utf-8") as f:
+                    user_config = json.load(f)
+            except Exception as e:
+                _trace_log(f"Error reading user config {_CUR_VER_OCLSP_CONFIG_JSON_PATH}: {e}")
+                user_config = {}
+
+        # Merge Configs
+        # Start with global config
+        _GLOBAL_OCLSP_CONFIG = global_config.copy()
+        
+        # Update with user config (scalars overwrite)
+        for key, value in user_config.items():
+            if key not in ["workspaceFolders", "additionalIncludePath"]:
+                _GLOBAL_OCLSP_CONFIG[key] = value
+
+        # Smart Merge: workspaceFolders
+        # We want to merge workspace entries by matching URI (path).
+        # If a workspace exists in both, we merge their properties (e.g. combine includePath).
+        wf_global = global_config.get("workspaceFolders", [])
+        wf_user = user_config.get("workspaceFolders", [])
+        if not isinstance(wf_global, list): wf_global = []
+        if not isinstance(wf_user, list): wf_user = []
+
+        # Map normalized URI -> workspace dict
+        wf_map = {}
+
+        def normalize_wf_uri(folder_item):
+            uri = folder_item.get("uri", "")
+            # Normalize to lower case for key matching
+            return uri.strip().lower()
+
+        # 1. Add Global Workspaces
+        for wf in wf_global:
+            if isinstance(wf, dict):
+                key = normalize_wf_uri(wf)
+                if key:
+                    # Deep copy to avoid mutating original global config if needed
+                    wf_map[key] = json.loads(json.dumps(wf))
+
+        # 2. Merge User Workspaces
+        for wf in wf_user:
+            if isinstance(wf, dict):
+                key = normalize_wf_uri(wf)
+                if not key:
+                    continue
+                
+                if key in wf_map:
+                    # Exists in global, merge it
+                    existing = wf_map[key]
+                    
+                    # Merge includePath lists
+                    existing_inc = existing.get("includePath", [])
+                    new_inc = wf.get("includePath", [])
+                    if not isinstance(existing_inc, list): existing_inc = []
+                    if not isinstance(new_inc, list): new_inc = []
+                    
+                    # Combine and deduplicate include paths
+                    # Use a set for deduplication, preserving order if possible
+                    merged_inc = []
+                    seen_inc = set()
+                    for p in (existing_inc + new_inc):
+                        if p and p not in seen_inc:
+                            merged_inc.append(p)
+                            seen_inc.add(p)
+                    existing["includePath"] = merged_inc
+
+                    # Overwrite other scalar properties from user config (e.g. name)
+                    for k, v in wf.items():
+                        if k != "includePath":
+                            existing[k] = v
+                else:
+                    # New workspace, just add it
+                    wf_map[key] = json.loads(json.dumps(wf))
+        
+        # 3. Inject Default Workspaces (XFC, AppXFC) if missing
+        default_wfs = []
+        if _ORGDIR_EXE:
+            default_wfs.append({"name": "XFC", "path": os.path.join(_ORGDIR_EXE, "XFC")})
+        if _ORGDIR_USER_APPDATA:
+            default_wfs.append({"name": "AppXFC", "path": os.path.join(_ORGDIR_USER_APPDATA, "TMP", "OriginC", "X-Functions")})
+            
+        for item in default_wfs:
+            try:
+                uri_str = item["path"]
+                key = uri_str.strip().lower()
+                if key not in wf_map:
+                    wf_map[key] = {
+                        "uri": uri_str,
+                        "name": item["name"]
+                    }
+            except Exception:
+                pass
+
+        _GLOBAL_OCLSP_CONFIG["workspaceFolders"] = list(wf_map.values())
+
+        # Smart Merge: additionalIncludePath
+        # Concatenate and deduplicate
+        inc_global = global_config.get("additionalIncludePath", [])
+        inc_user = user_config.get("additionalIncludePath", [])
+        if not isinstance(inc_global, list): inc_global = []
+        if not isinstance(inc_user, list): inc_user = []
+        
+        merged_additional_inc = []
+        seen_additional_inc = set()
+        for p in (inc_global + inc_user):
+            if p and p not in seen_additional_inc:
+                merged_additional_inc.append(p)
+                seen_additional_inc.add(p)
+                
+        _GLOBAL_OCLSP_CONFIG["additionalIncludePath"] = merged_additional_inc
+
+    return _GLOBAL_OCLSP_CONFIG
 
 ###############################################################################
 # LSP framing (binary-safe)
@@ -150,8 +282,9 @@ def _handle_origin_initialize(msg, inject_queue):
         "name": "OriginC"
     }]
     
-    if "workspaceFolders" in _OCLSP_CONFIG:
-        extra_folders = _OCLSP_CONFIG["workspaceFolders"]
+    config = get_oclsp_config()
+    if "workspaceFolders" in config:
+        extra_folders = config["workspaceFolders"]
         if isinstance(extra_folders, list):
             for folder in extra_folders:
                 if "uri" in folder and "name" in folder:
@@ -171,7 +304,7 @@ def _handle_origin_initialize(msg, inject_queue):
     out = [json.dumps(msg).encode("utf-8")]
     return out
 
-def send_cpptools_didChangeCppProperties(inject_queue, folder_path):
+def send_cpptools_didChangeCppProperties(inject_queue, workspace_item):
     json_path = Path(__file__).with_name("cpptools_didChangeCppProperties.json")
     try:
         with json_path.open("r", encoding="utf-8") as f:
@@ -180,17 +313,42 @@ def send_cpptools_didChangeCppProperties(inject_queue, folder_path):
         params = {}  # fallback to empty dict if file missing or invalid
     ocPath = os.path.join(_ORGDIR_EXE, "OriginC")
 
+    # Extract folder_path from workspace_item
+    folder_path = None
+    if workspace_item:
+        uri = workspace_item.get("uri", "")
+        if uri.lower().startswith("file:///"):
+            folder_path = uri[8:]
+            folder_path = os.path.normpath(folder_path)
+        elif os.path.isabs(uri):
+             folder_path = uri
+
+    if not folder_path:
+        _trace_log(f"send_cpptools_didChangeCppProperties: could not determine folder_path for {workspace_item}")
+        return
+
     is_oc_folder = folder_path == ocPath
 
     # Always use ocPath/** as include path
     params["configurations"][0]["includePath"] = [f"{ocPath}/**"]
 
-    if not is_oc_folder and "additionalIncludePath" in _OCLSP_CONFIG:
-        additional_paths = _OCLSP_CONFIG["additionalIncludePath"]
-        if isinstance(additional_paths, list):
-            for path in additional_paths:
-                if path:
-                    params["configurations"][0]["includePath"].append(f"{path}/**")
+    config = get_oclsp_config()
+    if not is_oc_folder:
+        # 1. Global Additional Include Paths
+        if "additionalIncludePath" in config:
+            additional_paths = config["additionalIncludePath"]
+            if isinstance(additional_paths, list):
+                for path in additional_paths:
+                    if path:
+                        params["configurations"][0]["includePath"].append(f"{path}/**")
+        
+        # 2. Per-Workspace Include Paths
+        if workspace_item and "includePath" in workspace_item:
+            wf_includes = workspace_item["includePath"]
+            if isinstance(wf_includes, list):
+                for inc in wf_includes:
+                    if inc:
+                        params["configurations"][0]["includePath"].append(f"{inc}/**")
 
     # Extract major and first two decimals
     # Ensure we have a string representation of the version with enough decimals
@@ -257,8 +415,9 @@ def send_cpptools_initialize(inject_queue):
         "uri": Path(ocPath).absolute().as_uri(),
     })
 
-    if "workspaceFolders" in _OCLSP_CONFIG:
-        extra_folders = _OCLSP_CONFIG["workspaceFolders"]
+    config = get_oclsp_config()
+    if "workspaceFolders" in config:
+        extra_folders = config["workspaceFolders"]
         if isinstance(extra_folders, list):
             for folder in extra_folders:
                 if "uri" in folder:
@@ -286,23 +445,21 @@ def _handle_origin_initialized(msg, inject_queue):
     send_cpptools_initialize(inject_queue)
 
     ocPath = os.path.join(_ORGDIR_EXE, "OriginC")
-    send_cpptools_didChangeCppProperties(inject_queue, ocPath)
+    
+    # Create a temporary workspace item for OriginC
+    oc_workspace_item = {
+        "uri": ocPath,
+        "name": "OriginC"
+    }
+    send_cpptools_didChangeCppProperties(inject_queue, oc_workspace_item)
 
-    if "workspaceFolders" in _OCLSP_CONFIG:
-        extra_folders = _OCLSP_CONFIG["workspaceFolders"]
+    config = get_oclsp_config()
+    if "workspaceFolders" in config:
+        extra_folders = config["workspaceFolders"]
         if isinstance(extra_folders, list):
             for folder in extra_folders:
                 if "uri" in folder:
-                    uri = folder.get("uri")
-                    folder_path = ""
-                    if uri.lower().startswith("file:///"):
-                         folder_path = uri[8:]
-                         folder_path = os.path.normpath(folder_path)
-                    elif os.path.isabs(uri):
-                         folder_path = uri
-                    
-                    if folder_path:
-                         send_cpptools_didChangeCppProperties(inject_queue, folder_path)
+                    send_cpptools_didChangeCppProperties(inject_queue, folder)
 
     return None
 
@@ -501,8 +658,9 @@ def _handle_lsp_references(msg):
         ReferenceType.CannotConfirm,
         #ReferenceType.NotAReference
     ]
-    if "allowed_ref_type" in _OCLSP_CONFIG:
-        allowed_ref_type = _OCLSP_CONFIG["allowed_ref_type"]
+    config = get_oclsp_config()
+    if "allowed_ref_type" in config:
+        allowed_ref_type = config["allowed_ref_type"]
     
     if isinstance(result, dict) and "referenceInfos" in result:
         infos = result["referenceInfos"]
@@ -770,8 +928,10 @@ def main(cpptools_path):
     _ORGDIR_USER_APPDATA = os.environ.get("ORGDIR_USER_APPDATA", "")
     global _DATASTORAGE_DIR
     _DATASTORAGE_DIR = _ORGDIR_USER_APPDATA if os.path.exists(_ORGDIR_USER_APPDATA) else _ORGDIR_UFF
-    global _OCLSP_CONFIG_JSON_PATH
-    _OCLSP_CONFIG_JSON_PATH = os.environ.get("OCLSP_CONFIG_JSON_PATH", "")
+    global _GLOBAL_OCLSP_CONFIG_JSON_PATH
+    _GLOBAL_OCLSP_CONFIG_JSON_PATH = os.environ.get("OCLSP_CONFIG_JSON_PATH", "")
+    global _CUR_VER_OCLSP_CONFIG_JSON_PATH
+    _CUR_VER_OCLSP_CONFIG_JSON_PATH = os.path.join(_DATASTORAGE_DIR, "OCLSP", "OCLSP_User.json")
 
     global _trace_log, _trace, _log
     _trace = trace_impl if _enable_trace else trace_log_noop
@@ -779,14 +939,6 @@ def main(cpptools_path):
     _trace_log = trace_log_impl if (_enable_trace or _enable_log) else trace_log_noop
     _trace_log("Starting up..")
     
-    global _OCLSP_CONFIG
-    if _OCLSP_CONFIG_JSON_PATH and os.path.isfile(_OCLSP_CONFIG_JSON_PATH):
-        try:
-            with open(_OCLSP_CONFIG_JSON_PATH, "r", encoding="utf-8") as f:
-                _OCLSP_CONFIG = json.load(f)
-        except Exception as e:
-            _trace_log(f"Error reading config.json: {e}")
-
     global _CPPTOOLS_PATH
     _CPPTOOLS_PATH = cpptools_path
     global _ORG_VERSION
