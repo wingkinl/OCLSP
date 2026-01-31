@@ -556,10 +556,18 @@ def _fix_completion_documentation(msg):
 
 def _handle_lsp_initialize(msg):
     # Modify the initialize response to enable hoverProvider
+    # Ensure the result and capabilities exist
+    if "result" not in msg:
+        msg["result"] = {}
+    if "capabilities" not in msg["result"]:
+        msg["result"]["capabilities"] = {}
+    if "general" not in msg["result"]["capabilities"]:
+        msg["result"]["capabilities"]["general"] = {}
     if "result" in msg and "capabilities" in msg["result"]:
         msg["result"]["capabilities"]["hoverProvider"] = True
         msg["result"]["capabilities"]["documentSymbolProvider"] = True
         msg["result"]["capabilities"]["referencesProvider"] = True
+        msg["result"]["capabilities"]["general"]["positionEncodings"] = ["utf-8"]
     _trace_log(f"modified initialize response: {msg}")
     out = [json.dumps(msg).encode("utf-8")]
     return out
