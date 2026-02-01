@@ -32,6 +32,14 @@ _shutdown_lock = threading.Lock()
 _cpptools_process = None
 _server_stdin_lock = threading.Lock()
 _client_stdout_lock = threading.Lock()
+_log_lock = None
+_log_lock_lazy_store = {}
+
+def get_log_lock():
+    global _log_lock
+    if _log_lock is None:
+        _log_lock = _log_lock_lazy_store.setdefault("lock", threading.Lock())
+    return _log_lock
 
 def get_oclsp_config():
     global _GLOBAL_OCLSP_CONFIG
@@ -864,18 +872,20 @@ def handle_lsp_server_stderr(stderr, client_out):
 ###############################################################################
 def log_to_file(file, msg):
     try:
-        with open(file, "a", encoding="utf-8") as f:
-            ts = time.strftime("%H:%M:%S") + f".{int(time.time() * 1000) % 1000:03d}"
-            f.write(f"\n[{ts}] {msg}\n")
+        with get_log_lock():
+            with open(file, "a", encoding="utf-8") as f:
+                ts = time.strftime("%H:%M:%S") + f".{int(time.time() * 1000) % 1000:03d}"
+                f.write(f"\n[{ts}] {msg}\n")
     except Exception:
         pass
 
 def log_exception(where):
     try:
-        with open(os.path.join(_DATASTORAGE_DIR, "OCLSP", "oclsp_proxy_error.log"), "a", encoding="utf-8") as f:
-            ts = time.strftime("%H:%M:%S") + f".{int(time.time() * 1000) % 1000:03d}"
-            f.write(f"\n[{ts}] {where}\n")
-            traceback.print_exc(file=f)
+        with get_log_lock():
+            with open(os.path.join(_DATASTORAGE_DIR, "OCLSP", "oclsp_proxy_error.log"), "a", encoding="utf-8") as f:
+                ts = time.strftime("%H:%M:%S") + f".{int(time.time() * 1000) % 1000:03d}"
+                f.write(f"\n[{ts}] {where}\n")
+                traceback.print_exc(file=f)
     except Exception:
         pass
 
