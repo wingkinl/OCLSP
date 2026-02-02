@@ -696,16 +696,6 @@ def _handle_lsp_references(msg):
                 # cpptools returns just a start position. We need a range.
                 # We'll create a zero-length range or try to guess length from text if reliable.
                 # For now, safe bet is zero-length range at the start position.
-
-                # enum ReferenceType {
-                #     Confirmed,
-                #     ConfirmationInProgress,
-                #     Comment,
-                #     String,
-                #     Inactive,
-                #     CannotConfirm,
-                #     NotAReference
-                # }
                 
                 loc = {
                     "uri": uri,
@@ -886,6 +876,16 @@ def log_exception(where):
                 ts = time.strftime("%H:%M:%S") + f".{int(time.time() * 1000) % 1000:03d}"
                 f.write(f"\n[{ts}] {where}\n")
                 traceback.print_exc(file=f)
+    except Exception:
+        pass
+    # Send window/logMessage to client
+    msg = f"Error: {where}, traceback:\n{traceback.format_exc()}"
+    log_msg = {
+        "type": 1,  # Error = 1
+        "message": f"[OCLSP] {msg}"
+    }
+    try:
+        send_notification(sys.stdout.buffer, "window/logMessage", params=log_msg, to_lsp_server=False, lock=_client_stdout_lock)
     except Exception:
         pass
 
